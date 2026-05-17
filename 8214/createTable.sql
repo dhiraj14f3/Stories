@@ -1,7 +1,7 @@
 CREATE TABLE c_patient_pharmacy (
     id BIGSERIAL PRIMARY KEY,
 
-    patient_id BIGINT NOT NULL,
+    patient_id BIGINT,
 
     pharmacy_id BIGINT NOT NULL,
     distributor VARCHAR(100) NOT NULL,

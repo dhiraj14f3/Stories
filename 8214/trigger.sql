@@ -2,7 +2,7 @@
 -- HELPER FUNCTION TO SYNC c_cases.pharmacy_id
 -- =====================================================
 
-CREATE OR REPLACE FUNCTION "fpa-1003".fn_sync_case_pharmacy(
+CREATE OR REPLACE FUNCTION fn_sync_case_pharmacy(
     p_patient_id BIGINT,
     p_distributor VARCHAR
 )
@@ -26,7 +26,7 @@ BEGIN
     -- Update eligible cases only
     UPDATE c_cases cc
     SET
-        pharmacy_id = v_active_pharmacy_id,
+        patient_pharmacy_id = v_active_pharmacy_id,
         modified_at = CURRENT_TIMESTAMP
     FROM case_statuses cs
     WHERE cc.case_status_id = cs.id
@@ -44,7 +44,7 @@ $BODY$;
 -- FUNCTION TO MANAGE ACTIVE / INACTIVE PHARMACIES
 -- =====================================================
 
-CREATE OR REPLACE FUNCTION "fpa-1003".fn_manage_patient_pharmacy_status()
+CREATE OR REPLACE FUNCTION fn_manage_patient_pharmacy_status()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $BODY$
@@ -66,7 +66,7 @@ BEGIN
     END IF;
 
     -- Sync pharmacy_id in c_cases
-    PERFORM "fpa-1003".fn_sync_case_pharmacy(
+    PERFORM fn_sync_case_pharmacy(
         NEW.patient_id,
         NEW.distributor
     );
@@ -82,14 +82,14 @@ $BODY$;
 -- DELETE HANDLER FUNCTION
 -- =====================================================
 
-CREATE OR REPLACE FUNCTION "fpa-1003".fn_sync_case_pharmacy_on_delete()
+CREATE OR REPLACE FUNCTION fn_sync_case_pharmacy_on_delete()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $BODY$
 BEGIN
 
     -- Sync pharmacy_id after delete
-    PERFORM "fpa-1003".fn_sync_case_pharmacy(
+    PERFORM fn_sync_case_pharmacy(
         OLD.patient_id,
         OLD.distributor
     );
@@ -110,7 +110,7 @@ CREATE TRIGGER trg_manage_patient_pharmacy_status
 AFTER INSERT OR UPDATE
 ON c_patient_pharmacy
 FOR EACH ROW
-EXECUTE FUNCTION "fpa-1003".fn_manage_patient_pharmacy_status();
+EXECUTE FUNCTION fn_manage_patient_pharmacy_status();
 
 
 
@@ -122,4 +122,4 @@ CREATE TRIGGER trg_sync_case_pharmacy_delete
 AFTER DELETE
 ON c_patient_pharmacy
 FOR EACH ROW
-EXECUTE FUNCTION "fpa-1003".fn_sync_case_pharmacy_on_delete();
+EXECUTE FUNCTION fn_sync_case_pharmacy_on_delete();

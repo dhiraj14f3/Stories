@@ -76,7 +76,7 @@ WITH entity AS (
                                ('id','serial','bigint',NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL),
                                ('record_status', 'single line', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL),
                                ('distributor', 'drop down', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', '{"Neovance Specialty Pharmacy"}'),
-                               ('pharmacy_id', 'single line', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL),
+                               ('pharmacy_id', 'number', 'bigint', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL),
                                ('distributor_id','number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL),
                                ('patient_id', 'number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL),
                                ('is_epr_retry_success', 'checkbox', 'boolean', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL)
