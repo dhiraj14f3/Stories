@@ -1,0 +1,109 @@
+CREATE OR REPLACE FUNCTION "fpa-4252".get_case_pap_details(
+    p_case_key TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+AS
+$$
+DECLARE
+    v_case_id                     BIGINT;
+    v_product_id                  BIGINT;
+    v_trademark                   TEXT;
+    v_product_uuid                TEXT;
+    v_alias                       TEXT;
+
+    v_prescription_attachment_id  BIGINT;
+
+    v_confirm_task_id             BIGINT;
+BEGIN
+
+--------------------------------------------------
+-- 1) Fetch case_id and product_id
+--------------------------------------------------
+SELECT 
+    id,
+    product_id
+INTO 
+    v_case_id,
+    v_product_id
+FROM "fpa-4252".c_cases
+WHERE case_key = p_case_key;
+
+IF v_case_id IS NULL THEN
+    RETURN jsonb_build_object(
+        'success', false,
+        'message', 'Case not found',
+        'case_key', p_case_key
+    );
+END IF;
+
+--------------------------------------------------
+-- 2) Fetch product info
+--------------------------------------------------
+SELECT 
+    trademarked_name,
+    product_uuid
+INTO 
+    v_trademark,
+    v_product_uuid
+FROM "fpa-4252".products
+WHERE id = v_product_id;
+
+--------------------------------------------------
+-- 3) Build alias
+--------------------------------------------------
+v_alias := 'PAP_'
+           || COALESCE(v_trademark, '')
+           || '_'
+           || COALESCE(v_product_uuid::TEXT, '')
+           || '_'
+           || p_case_key;
+
+--------------------------------------------------
+-- 4) Get preferred prescription attachment
+--------------------------------------------------
+SELECT prescription_attachment_id
+INTO v_prescription_attachment_id
+FROM "fpa-4252".c_order_prescription_details
+WHERE case_id = v_case_id
+  AND preferred_prescription IS TRUE
+LIMIT 1;
+
+--------------------------------------------------
+-- 5) Get confirmOrderDetailsTask task id
+--------------------------------------------------
+SELECT id
+INTO v_confirm_task_id
+FROM "fpa-4252".d_task
+WHERE case_id = v_case_id
+  AND step_id = 'confirmOrderDetailsTask'
+ORDER BY created_at DESC
+LIMIT 1;
+
+--------------------------------------------------
+-- 6) Return response
+--------------------------------------------------
+RETURN jsonb_build_object(
+    'success', true,
+    'case_id', v_case_id,
+    'case_key', p_case_key,
+    'alias', v_alias,
+    'prescription_attachment_id', v_prescription_attachment_id,
+    'task_id', v_confirm_task_id
+);
+
+EXCEPTION
+WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+        'success', false,
+        'message', SQLERRM,
+        'case_key', p_case_key
+    );
+END;
+$$;
+
+
+-- Example Usage
+SELECT "fpa-4252".get_case_pap_details(
+    'ODR-5689787'
+);
