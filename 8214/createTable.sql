@@ -1,4 +1,4 @@
-CREATE TABLE c_patient_pharmacy (
+CREATE TABLE if not exists c_patient_pharmacy (
     id BIGSERIAL PRIMARY KEY,
 
     patient_id BIGINT,

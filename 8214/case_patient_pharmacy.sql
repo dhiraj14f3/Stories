@@ -1,5 +1,5 @@
 ALTER TABLE c_cases
-ADD COLUMN patient_pharmacy_id BIGINT;
+ADD COLUMN IF NOT EXISTS patient_pharmacy_id BIGINT;
 
 INSERT INTO d_entity_fields (
     name, field_name, required, is_unique, label, type, options, default_value,
@@ -64,22 +64,3 @@ WHERE NOT EXISTS (
 );
 
 
-UPDATE c_cases cc
-SET
-    patient_pharmacy_id = cpp.pharmacy_id,
-    modified_at = CURRENT_TIMESTAMP
-FROM (
-    SELECT DISTINCT ON (patient_id, distributor)
-           patient_id,
-           distributor,
-           pharmacy_id
-    FROM c_patient_pharmacy
-    WHERE status = 'ACTIVE'
-    ORDER BY patient_id, distributor, id DESC
-) cpp,
-case_statuses cs
-WHERE cs.id = cc.case_status_id
-  AND cc.patient_id = cpp.patient_id
-  AND cc.service_id = 65
-  AND cs.name <> 'Pending Shipment'
-  AND cs.overall_case_status = 'Open';

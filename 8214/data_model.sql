@@ -1,4 +1,4 @@
-INSERT INTO "fpa-1003".d_entities (
+INSERT INTO d_entities (
     name,
     singular_label,
     plural_label,
@@ -52,9 +52,14 @@ SELECT
     'ACTIVE' AS record_status,
     gen_random_uuid() AS uid,
     NULL AS extension_of_entity_id,
-    NULL AS parent_entity_id;
+    NULL AS parent_entity_id
+    WHERE NOT EXISTS (
+    SELECT 1
+    FROM d_entities
+    WHERE table_name = 'c_patient_pharmacy'
+);
 
-INSERT INTO "fpa-1003".d_entity_fields (
+INSERT INTO d_entity_fields (
     name, field_name, required, is_unique, label, type, options, default_value,
     description, field_constraints, d_entity_id, active, created_at, created_by,
     modified_at, modified_by, deleted, ui_data_type, db_data_type, foreign_key,
@@ -63,23 +68,23 @@ INSERT INTO "fpa-1003".d_entity_fields (
 )
 WITH entity AS (
     SELECT id, source_type
-    FROM "fpa-1003".d_entities
+    FROM d_entities
     WHERE table_name = 'c_patient_pharmacy'
 ),
      field_data AS (
          SELECT * FROM (
                            VALUES
-                               ('created_at', 'date-time', 'timestamp', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL),
-                               ('modified_at', 'date-time', 'timestamp', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL),
-                               ('created_by', 'single line', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL),
-                               ('modified_by', 'single line', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL),
-                               ('id','serial','bigint',NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL),
-                               ('record_status', 'single line', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL),
+                               ('created_at', 'date-time', 'timestamp', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL::varchar[]),
+                               ('modified_at', 'date-time', 'timestamp', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL::varchar[]),
+                               ('created_by', 'single line', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL::varchar[]),
+                               ('modified_by', 'single line', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL::varchar[]),
+                               ('id','serial','bigint',NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL::varchar[]),
+                               ('record_status', 'single line', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL::varchar[]),
                                ('distributor', 'drop down', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', '{"Neovance Specialty Pharmacy"}'),
-                               ('pharmacy_id', 'number', 'bigint', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL),
-                               ('distributor_id','number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL),
-                               ('patient_id', 'number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL),
-                               ('is_epr_retry_success', 'checkbox', 'boolean', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL)
+                               ('pharmacy_id', 'number', 'bigint', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL::varchar[]),
+                               ('distributor_id','number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL::varchar[]),
+                               ('patient_id', 'number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL::varchar[]),
+                               ('is_epr_retry_success', 'checkbox', 'boolean', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL::varchar[]),
                                ('status', 'drop down', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', '{"ACTIVE","INACTIVE"}')
         ) AS field_data (field_name, ui_data_type, db_data_type, char_limit, source_type, min_value, max_value, control_type,
         control_values)
@@ -123,7 +128,7 @@ FROM field_data
          CROSS JOIN entity e
 WHERE NOT EXISTS (
     SELECT 1
-    FROM "fpa-1003".d_entity_fields df
+    FROM d_entity_fields df
     WHERE df.d_entity_id = e.id
       AND df.field_name = field_data.field_name
 );
@@ -139,13 +144,13 @@ v_parent_entity_id BIGINT;   -- renamed
     v_target_entity_id BIGINT;
 master_id UUID;
 BEGIN
-SELECT id INTO v_parent_entity_id FROM "fpa-1003".d_entities WHERE table_name = 'c_patient_pharmacy';
-SELECT id INTO v_target_entity_id FROM "fpa-1003".d_entities WHERE table_name = 'c_patients';
+SELECT id INTO v_parent_entity_id FROM d_entities WHERE table_name = 'c_patient_pharmacy';
+SELECT id INTO v_target_entity_id FROM d_entities WHERE table_name = 'c_patients';
 select gen_random_uuid() INTO master_id;
 select gen_random_uuid() INTO relation_id;
 
 
-INSERT INTO "fpa-1003".d_relationships(
+INSERT INTO d_relationships(
     parent_entity_id,
     target_entity_id,
     parent_entity,
@@ -199,13 +204,13 @@ SELECT
     'USER',                                       -- source_type
     master_id                                          -- master_id
     WHERE NOT EXISTS (
-    SELECT 1 FROM "fpa-1003".d_relationships dr
+    SELECT 1 FROM d_relationships dr
     WHERE dr.parent_entity_id = v_target_entity_id
       AND dr.target_entity_id = v_parent_entity_id
 )
 RETURNING id INTO new_relation_id;
 
-INSERT INTO "fpa-1003".d_entity_fields (
+INSERT INTO d_entity_fields (
     name, field_name, required, is_unique, label, type, options, default_value,
     description, field_constraints, d_entity_id, active, created_at, created_by,
     modified_at, modified_by, deleted, ui_data_type, db_data_type, foreign_key,
@@ -214,7 +219,7 @@ INSERT INTO "fpa-1003".d_entity_fields (
 )
 WITH entity AS (
     SELECT id, source_type
-    FROM "fpa-1003".d_entities
+    FROM d_entities
     WHERE table_name = 'c_patients'
 ),
      field_data AS (
@@ -265,12 +270,12 @@ FROM field_data
          CROSS JOIN entity e
 WHERE NOT EXISTS (
     SELECT 1
-    FROM "fpa-1003".d_entity_fields df
+    FROM d_entity_fields df
     WHERE df.d_entity_id = e.id
       AND df.field_name = field_data.field_name
 );
 
-INSERT INTO "fpa-1003".d_relationships (
+INSERT INTO d_relationships (
     parent_entity_id,
     target_entity_id,
     parent_entity,
@@ -326,7 +331,7 @@ VALUES (
 -- INSERT: Relationship for Decision Of Review
 -- =====================================================
 
-INSERT INTO "fpa-1003".d_entity_fields(
+INSERT INTO d_entity_fields(
     name, field_name, required, is_unique, label, type, options, default_value, description,
     field_constraints, d_entity_id, active, created_at, created_by, deleted,
     ui_data_type, db_data_type, foreign_key, not_storable, is_link_stub, relation_id, control_type,
@@ -412,7 +417,7 @@ VALUES (
        )
     RETURNING id INTO patient_field_id;
 
-INSERT INTO "fpa-1003".d_fields_relationship(
+INSERT INTO d_fields_relationship(
     parent_field_id,          -- parent field reference
     target_field_id,          -- child field reference
     deleted,                  -- deletion flag
@@ -425,7 +430,7 @@ INSERT INTO "fpa-1003".d_fields_relationship(
 )
 VALUES (
            patient_field_id,  -- parent field ID
-           (select id from "fpa-1003".d_entity_fields where d_entity_id=v_target_entity_id and field_name ='name'),                       -- target field ID
+           (select id from d_entity_fields where d_entity_id=v_target_entity_id and field_name ='name'),                       -- target field ID
            FALSE,                      -- deleted = false
            now(),
            'System',               -- created by

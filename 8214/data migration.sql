@@ -1,18 +1,18 @@
-SET search_path TO "fpa-1003";
-
 INSERT INTO c_patient_pharmacy (
     patient_id,
     pharmacy_id,
     distributor,
     status,
-    created_at
+    created_at,
+    created_by
 )
 SELECT
     cp.id AS patient_id,
     cp.pharmacy_id,
     'Neovance Specialty Pharmacy' AS distributor,
     'ACTIVE',
-    CURRENT_TIMESTAMP
+    CURRENT_TIMESTAMP,
+    'SYSTEM'
 FROM c_patients cp
 WHERE cp.pharmacy_id IS NOT NULL
 ON CONFLICT (patient_id, pharmacy_id, distributor)

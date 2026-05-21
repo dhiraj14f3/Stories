@@ -15,12 +15,12 @@ BEGIN
 
 SELECT id
 INTO v_parent_entity_id
-FROM "fpa-1003".d_entities
+FROM d_entities
 WHERE table_name = 'integration_exchanges';
 
 SELECT id
 INTO v_target_entity_id
-FROM "fpa-1003".d_entities
+FROM d_entities
 WHERE table_name = 'c_cases';
 
 SELECT gen_random_uuid() INTO relation_id;
@@ -31,7 +31,7 @@ SELECT gen_random_uuid() INTO master_id;
 -- ONE TO MANY : c_cases -> integration_exchanges
 -- =====================================================
 
-INSERT INTO "fpa-1003".d_relationships(
+INSERT INTO d_relationships(
     parent_entity_id,
     target_entity_id,
     parent_entity,
@@ -86,7 +86,7 @@ SELECT
     master_id
 WHERE NOT EXISTS (
     SELECT 1
-    FROM "fpa-1003".d_relationships dr
+    FROM d_relationships dr
     WHERE dr.parent_entity_id = v_target_entity_id
       AND dr.target_entity_id = v_parent_entity_id
 )
@@ -96,7 +96,7 @@ RETURNING id INTO new_relation_id;
 -- MULTI LOOKUP FIELD IN c_cases
 -- =====================================================
 
-INSERT INTO "fpa-1003".d_entity_fields (
+INSERT INTO d_entity_fields (
     name,
     field_name,
     required,
@@ -134,7 +134,7 @@ INSERT INTO "fpa-1003".d_entity_fields (
 )
 WITH entity AS (
     SELECT id, source_type
-    FROM "fpa-1003".d_entities
+    FROM d_entities
     WHERE table_name = 'c_cases'
 ),
 field_data AS (
@@ -190,7 +190,7 @@ FROM field_data
 CROSS JOIN entity e
 WHERE NOT EXISTS (
     SELECT 1
-    FROM "fpa-1003".d_entity_fields df
+    FROM d_entity_fields df
     WHERE df.d_entity_id = e.id
       AND df.field_name = field_data.field_name
 );
@@ -199,7 +199,7 @@ WHERE NOT EXISTS (
 -- MANY TO ONE : integration_exchanges -> c_cases
 -- =====================================================
 
-INSERT INTO "fpa-1003".d_relationships (
+INSERT INTO d_relationships (
     parent_entity_id,
     target_entity_id,
     parent_entity,
@@ -255,7 +255,7 @@ RETURNING id INTO case_relation_id;
 -- SINGLE LOOKUP FIELD IN integration_exchanges
 -- =====================================================
 
-INSERT INTO "fpa-1003".d_entity_fields(
+INSERT INTO d_entity_fields(
     name,
     field_name,
     required,
@@ -337,7 +337,7 @@ RETURNING id INTO case_field_id;
 -- FIELD RELATIONSHIP
 -- =====================================================
 
-INSERT INTO "fpa-1003".d_fields_relationship(
+INSERT INTO d_fields_relationship(
     parent_field_id,
     target_field_id,
     deleted,
@@ -352,7 +352,7 @@ VALUES (
     case_field_id,
     (
         SELECT id
-        FROM "fpa-1003".d_entity_fields
+        FROM d_entity_fields
         WHERE d_entity_id = v_target_entity_id
           AND field_name = 'case_number'
     ),
