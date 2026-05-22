@@ -6,12 +6,17 @@ ADD COLUMN IF NOT EXISTS group_id BIGINT,
 ADD COLUMN IF NOT EXISTS http_status BIGINT,
 ADD COLUMN IF NOT EXISTS id BIGINT,
 ADD COLUMN IF NOT EXISTS master_id UUID,
-ADD COLUMN IF NOT EXISTS modified_at TIMESTAMP,
 ADD COLUMN IF NOT EXISTS modified_by VARCHAR(255),
 ADD COLUMN IF NOT EXISTS patient_id BIGINT,
 ADD COLUMN IF NOT EXISTS record_status VARCHAR(1000),
 ADD COLUMN IF NOT EXISTS resource VARCHAR(255),
-ADD COLUMN IF NOT EXISTS resource_id BIGINT;
+ADD COLUMN IF NOT EXISTS resource_id BIGINT,
+ADD COLUMN IF NOT EXISTS integration_identifier VARCHAR(255);
+
+ALTER TABLE generic_payload RENAME COLUMN updated_at TO modified_at; -- updated_at -to modified_at
+
+
+-- udpated_at -to modified_at
 
 
 INSERT INTO d_entities (
@@ -132,7 +137,6 @@ field_data AS (
             ('request_query_params_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
             ('request_headers_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
             ('created_at', 'date-time', 'timestamp', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'timestamp', NULL::varchar[]),
-            ('updated_at', 'date-time', 'timestamp', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'timestamp', NULL::varchar[]),
             ('transformed_request_body_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
             ('response_body_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
             ('transformed_response_body_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
@@ -144,6 +148,7 @@ field_data AS (
             ('resource', 'single line', 'varchar', 255::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
             ('resource_id', 'number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'long', NULL::varchar[]),
             ('record_status', 'single line', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
+            ('integration_identifier', 'single line', 'varchar', 255::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
             ('response_error_message', 'multi line', 'varchar', 100::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[])
     ) AS field_data (
         field_name,
