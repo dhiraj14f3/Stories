@@ -11,7 +11,7 @@ ADD COLUMN IF NOT EXISTS master_id UUID,
 ADD COLUMN IF NOT EXISTS modified_by VARCHAR(255),
 ADD COLUMN IF NOT EXISTS patient_id BIGINT,
 ADD COLUMN IF NOT EXISTS record_status VARCHAR(1000),
-ADD COLUMN IF NOT EXISTS resource VARCHAR(255),
+ADD COLUMN IF NOT EXISTS resource_type VARCHAR(255),
 ADD COLUMN IF NOT EXISTS resource_id BIGINT,
 ADD COLUMN IF NOT EXISTS integration_identifier VARCHAR(255);
 
@@ -147,7 +147,7 @@ field_data AS (
             ('master_id', 'uuid', 'uuid', 255::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'uuid', NULL::varchar[]),
             ('case_id', 'number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'long', NULL::varchar[]),
             ('patient_id', 'number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'long', NULL::varchar[]),
-            ('resource', 'single line', 'varchar', 255::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
+            ('resource_type', 'single line', 'varchar', 255::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
             ('resource_id', 'number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'long', NULL::varchar[]),
             ('record_status', 'single line', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
             ('integration_identifier', 'single line', 'varchar', 255::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
