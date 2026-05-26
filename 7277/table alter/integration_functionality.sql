@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS integration_functionality (
     identifier VARCHAR(255) NOT NULL UNIQUE,
     integration_name VARCHAR(255) NOT NULL,
     request_type VARCHAR(50) NOT NULL,
-    group_id VARCHAR(255),
+    group_id BIGINT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     record_status VARCHAR(20) DEFAULT 'ACTIVE'
@@ -170,7 +170,7 @@ field_data AS (
             ('identifier', 'single line', 'varchar', 255::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
             ('integration_name', 'single line', 'varchar', 255::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
             ('request_type', 'drop down', 'varchar', 100::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', '{"INBOUND","OUTBOUND"}'),
-            ('group_id', 'single line', 'varchar', 255::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
+            ('group_id', 'number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'long', NULL::varchar[]),
             ('created_at', 'date-time', 'timestamp', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'timestamp', NULL::varchar[]),
             ('updated_at', 'date-time', 'timestamp', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'timestamp', NULL::varchar[])
     ) AS field_data (
