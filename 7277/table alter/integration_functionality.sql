@@ -1,3 +1,5 @@
+
+
 CREATE TABLE IF NOT EXISTS integration_functionality (
     id BIGSERIAL PRIMARY KEY,
     identifier VARCHAR(255) NOT NULL UNIQUE,
@@ -39,7 +41,7 @@ FROM (
         ('migrated-PatientAddRequest', 'EPR', 'OUTBOUND', 5, '2026-05-12 11:27:01.311553'::timestamp, '2026-05-12 11:27:01.311553'::timestamp, 'ACTIVE'),
         ('migrated-PatientQueryRequest', 'EPR', 'OUTBOUND', 5, '2026-05-12 11:27:01.311553'::timestamp, '2026-05-12 11:27:01.311553'::timestamp, 'ACTIVE'),
         ('migrated-PatientUpdateTpLinkRequest', 'EPR', 'OUTBOUND', 5, '2026-05-12 11:27:01.311553'::timestamp, '2026-05-12 11:27:01.311553'::timestamp, 'ACTIVE'),
-        ('mgirated-CardholderAddIdRequest', 'EPR', 'OUTBOUND', 5, '2026-05-12 11:27:01.311553'::timestamp, '2026-05-12 11:27:01.311553'::timestamp, 'ACTIVE'),
+        ('migrated-CardholderAddIdRequest', 'EPR', 'OUTBOUND', 5, '2026-05-12 11:27:01.311553'::timestamp, '2026-05-12 11:27:01.311553'::timestamp, 'ACTIVE'),
         ('experian-financial-clearance', 'EXPERIAN', 'OUTBOUND', 6, '2026-05-12 11:27:01.311553'::timestamp, '2026-05-12 11:27:01.311553'::timestamp, 'ACTIVE'),
         ('cds-putPrescriptionDocument', 'CDS', 'OUTBOUND', 7, '2026-05-12 11:27:01.311553'::timestamp, '2026-05-12 11:27:01.311553'::timestamp, 'ACTIVE')
 ) AS t (

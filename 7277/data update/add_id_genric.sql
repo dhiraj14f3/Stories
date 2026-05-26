@@ -1,9 +1,11 @@
+
+
 CREATE SEQUENCE IF NOT EXISTS generic_payload_id_seq;
 
 -- Set sequence current value to max(id)
 SELECT setval(
     'generic_payload_id_seq',
-    COALESCE((SELECT MAX(id) FROM generic_payload), 0)
+    COALESCE((SELECT MAX(id) FROM generic_payload), 1)
 );
 
 -- Make id auto-populate

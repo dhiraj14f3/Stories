@@ -1,8 +1,9 @@
+
 DO $$
 DECLARE
     new_relation_id bigint;
-    patient_relation_id BIGINT;
-    patient_field_id BIGINT;
+    case_relation_id BIGINT;
+    case_field_id BIGINT;
     relation_id UUID;
     v_parent_entity_id BIGINT;
     v_target_entity_id BIGINT;
@@ -21,14 +22,13 @@ WHERE table_name = 'generic_payload';
 SELECT id
 INTO v_target_entity_id
 FROM d_entities
-WHERE table_name = 'c_patients';
+WHERE table_name = 'c_cases';
 
-SELECT gen_random_uuid() INTO relation_id;
-SELECT gen_random_uuid() INTO master_id;
-
+select gen_random_uuid() INTO master_id;
+select gen_random_uuid() INTO relation_id;
 
 -- =====================================================
--- ONE TO MANY : c_patients -> generic_payload
+-- ONE TO MANY : c_cases -> generic_payload
 -- =====================================================
 
 INSERT INTO d_relationships(
@@ -61,11 +61,11 @@ INSERT INTO d_relationships(
 SELECT
     v_target_entity_id,
     v_parent_entity_id,
-    'c_patients',
+    'c_cases',
     'generic_payload',
     'One-to-Many',
     NULL,
-    'patient_id',
+    'case_id',
     'id',
     NULL,
     NULL,
@@ -77,7 +77,7 @@ SELECT
     NULL,
     relation_id,
     'generic_payload',
-    'patient',
+    'case',
     'generic_payload',
     'generic_payload',
     'ACTIVE',
@@ -93,7 +93,7 @@ WHERE NOT EXISTS (
 RETURNING id INTO new_relation_id;
 
 -- =====================================================
--- MULTI LOOKUP FIELD IN c_patients
+-- MULTI LOOKUP FIELD IN c_cases
 -- =====================================================
 
 INSERT INTO d_entity_fields (
@@ -135,7 +135,7 @@ INSERT INTO d_entity_fields (
 WITH entity AS (
     SELECT id, source_type
     FROM d_entities
-    WHERE table_name = 'c_patients'
+    WHERE table_name = 'c_cases'
 ),
 field_data AS (
     SELECT * FROM (
@@ -196,7 +196,7 @@ WHERE NOT EXISTS (
 );
 
 -- =====================================================
--- MANY TO ONE : generic_payload -> c_patients
+-- MANY TO ONE : generic_payload -> c_cases
 -- =====================================================
 
 INSERT INTO d_relationships (
@@ -228,10 +228,10 @@ VALUES (
     v_parent_entity_id,
     v_target_entity_id,
     'generic_payload',
-    'c_patients',
+    'c_cases',
     'Many-to-One',
     NULL,
-    'patient_id',
+    'case_id',
     'id',
     NULL,
     NULL,
@@ -241,15 +241,15 @@ VALUES (
     'System',
     relation_id,
     'generic_payload',
-    'patient',
+    'case',
     NULL,
-    'patient',
+    'case',
     NULL,
     'ACTIVE',
     'USER',
     master_id
 )
-RETURNING id INTO patient_relation_id;
+RETURNING id INTO case_relation_id;
 
 -- =====================================================
 -- SINGLE LOOKUP FIELD IN generic_payload
@@ -294,11 +294,11 @@ INSERT INTO d_entity_fields(
     nullable
 )
 VALUES (
-    'patient',
-    'patient',
+    'case',
+    'case',
     FALSE,
     NULL,
-    'patient',
+    'case',
     NULL,
     NULL,
     NULL,
@@ -314,7 +314,7 @@ VALUES (
     FALSE,
     TRUE,
     NULL,
-    patient_relation_id,
+    case_relation_id,
     'object',
     '{}',
     NULL,
@@ -331,7 +331,7 @@ VALUES (
     NULL,
     TRUE
 )
-RETURNING id INTO patient_field_id;
+RETURNING id INTO case_field_id;
 
 -- =====================================================
 -- FIELD RELATIONSHIP
@@ -349,12 +349,12 @@ INSERT INTO d_fields_relationship(
     target_global_field_id
 )
 VALUES (
-    patient_field_id,
+    case_field_id,
     (
         SELECT id
         FROM d_entity_fields
         WHERE d_entity_id = v_target_entity_id
-          AND field_name = 'name'
+          AND field_name = 'case_number'
     ),
     FALSE,
     now(),

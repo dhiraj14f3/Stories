@@ -1,3 +1,4 @@
+
 DO $$
 DECLARE
     new_relation_id BIGINT;

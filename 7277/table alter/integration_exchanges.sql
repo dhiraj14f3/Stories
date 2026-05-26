@@ -1,23 +1,18 @@
-ALTER TABLE generic_payload
+
+
+ALTER TABLE integration_exchanges
 ADD COLUMN IF NOT EXISTS case_id BIGINT,
-ADD COLUMN IF NOT EXISTS created_by VARCHAR(255),
-ADD COLUMN IF NOT EXISTS definition_id BIGINT,
 ADD COLUMN IF NOT EXISTS group_id BIGINT,
-ADD COLUMN IF NOT EXISTS http_status BIGINT,
-ADD COLUMN IF NOT EXISTS id BIGINT,
 ADD COLUMN IF NOT EXISTS master_id UUID,
-ADD COLUMN IF NOT EXISTS modified_by VARCHAR(255),
 ADD COLUMN IF NOT EXISTS patient_id BIGINT,
-ADD COLUMN IF NOT EXISTS record_status VARCHAR(1000),
+ADD COLUMN IF NOT EXISTS definition_id BIGINT,
 ADD COLUMN IF NOT EXISTS resource VARCHAR(255),
 ADD COLUMN IF NOT EXISTS resource_id BIGINT,
 ADD COLUMN IF NOT EXISTS integration_identifier VARCHAR(255);
 
-ALTER TABLE generic_payload RENAME COLUMN updated_at TO modified_at; -- updated_at -to modified_at
 
-
--- udpated_at -to modified_at
-
+ALTER TABLE integration_definitions
+ADD COLUMN IF NOT EXISTS group_id BIGINT;
 
 INSERT INTO d_entities (
     name,
@@ -48,9 +43,9 @@ INSERT INTO d_entities (
     parent_entity_id
 )
 SELECT
-    'generic_payload' AS name,
-    'generic_payload' AS singular_label,
-    'generic_payloads' AS plural_label,
+    'integration_exchanges' AS name,
+    'integration_exchanges' AS singular_label,
+    'integration_exchanges' AS plural_label,
     'Base' AS type,
     NULL AS color,
     NULL AS icon,
@@ -62,7 +57,7 @@ SELECT
     NULL AS version,
     NULL AS json_schema,
     FALSE AS deleted,
-    'generic_payload' AS table_name,
+    'integration_exchanges' AS table_name,
     'BASETABLE' AS entity_type,
     TRUE AS enabled,
     'USER' AS source_type,
@@ -77,7 +72,7 @@ SELECT
 WHERE NOT EXISTS (
     SELECT 1
     FROM d_entities
-    WHERE table_name = 'generic_payload'
+    WHERE table_name = 'integration_exchanges'
 );
 
 
@@ -120,27 +115,27 @@ INSERT INTO d_entity_fields (
 WITH entity AS (
     SELECT id, source_type
     FROM d_entities
-    WHERE table_name = 'generic_payload'
+    WHERE table_name = 'integration_exchanges'
 ),
 field_data AS (
     SELECT * FROM (
         VALUES
             ('id', 'serial', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'long', NULL::varchar[]),
-            ('created_by', 'single line', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
-            ('modified_at', 'date-time', 'timestamp', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'timestamp', NULL::varchar[]),
-            ('modified_by', 'single line', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
-            ('http_status', 'number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'long', NULL::varchar[]),
             ('request_id', 'uuid', 'uuid', 255::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'uuid', NULL::varchar[]),
-            ('request_body_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
-            ('status', 'single line', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
-            ('request_path_params_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
-            ('request_query_params_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
-            ('request_headers_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
-            ('created_at', 'date-time', 'timestamp', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'timestamp', NULL::varchar[]),
-            ('transformed_request_body_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
-            ('response_body_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
-            ('transformed_response_body_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
+            ('path_params_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
+            ('query_params_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
+            ('headers_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
+            ('body_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
+            ('transformed_request_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
+            ('http_status', 'number', 'integer', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'number', NULL::varchar[]),
+            ('raw_body_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
             ('definition_id', 'number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'long', NULL::varchar[]),
+            ('transformed_body_json', 'jsonb', 'jsonb', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'jsonb', NULL::varchar[]),
+            ('error_text', 'multi line', 'varchar', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
+            ('created_at', 'date-time', 'timestamp', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'timestamp', NULL::varchar[]),
+            ('modified_at', 'date-time', 'timestamp', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'timestamp', NULL::varchar[]),
+            ('created_by', 'single line', 'varchar', 255::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
+            ('modified_by', 'single line', 'varchar', 255::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
             ('group_id', 'number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'long', NULL::varchar[]),
             ('master_id', 'uuid', 'uuid', 255::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'uuid', NULL::varchar[]),
             ('case_id', 'number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'long', NULL::varchar[]),
@@ -148,8 +143,8 @@ field_data AS (
             ('resource', 'single line', 'varchar', 255::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
             ('resource_id', 'number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'long', NULL::varchar[]),
             ('record_status', 'single line', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
-            ('integration_identifier', 'single line', 'varchar', 255::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[]),
-            ('response_error_message', 'multi line', 'varchar', 100::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[])
+            ('integration_identifier', 'single line', 'varchar', 255::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', NULL::varchar[])
+
     ) AS field_data (
         field_name,
         ui_data_type,
