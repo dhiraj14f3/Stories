@@ -207,6 +207,8 @@ SELECT
     SELECT 1 FROM d_relationships dr
     WHERE dr.parent_entity_id = v_target_entity_id
       AND dr.target_entity_id = v_parent_entity_id
+      AND dr.relation_type = 'One-to-Many'
+
 )
 RETURNING id INTO new_relation_id;
 

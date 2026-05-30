@@ -22,7 +22,7 @@ DO NOTHING;
 
 UPDATE c_cases cc
 SET
-    pharmacy_id = cpp.pharmacy_id,
+    patient_pharmacy_id = cpp.pharmacy_id,
     modified_at = CURRENT_TIMESTAMP
 FROM (
     SELECT DISTINCT ON (patient_id, distributor)
@@ -37,5 +37,4 @@ case_statuses cs
 WHERE cs.id = cc.case_status_id
   AND cc.patient_id = cpp.patient_id
   AND cc.service_id = 65
-  AND cs.name <> 'Pending Shipment'
   AND cs.overall_case_status = 'Open';

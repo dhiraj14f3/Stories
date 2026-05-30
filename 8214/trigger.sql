@@ -32,7 +32,6 @@ BEGIN
     WHERE cc.case_status_id = cs.id
       AND cc.patient_id = p_patient_id
       AND cc.service_id = 65
-      AND cs.name <> 'Pending Shipment'
       AND cs.overall_case_status = 'Open';
 
 END;
@@ -106,7 +105,7 @@ $BODY$;
 -- INSERT / UPDATE TRIGGER
 -- =====================================================
 
-CREATE TRIGGER trg_manage_patient_pharmacy_status
+CREATE OR REPLACE TRIGGER trg_manage_patient_pharmacy_status
 AFTER INSERT OR UPDATE
 ON c_patient_pharmacy
 FOR EACH ROW
@@ -118,7 +117,7 @@ EXECUTE FUNCTION fn_manage_patient_pharmacy_status();
 -- DELETE TRIGGER
 -- =====================================================
 
-CREATE TRIGGER trg_sync_case_pharmacy_delete
+CREATE OR REPLACE TRIGGER trg_sync_case_pharmacy_delete
 AFTER DELETE
 ON c_patient_pharmacy
 FOR EACH ROW
