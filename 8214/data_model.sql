@@ -84,7 +84,7 @@ WITH entity AS (
                                ('pharmacy_id', 'number', 'bigint', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL::varchar[]),
                                ('distributor_id','number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL::varchar[]),
                                ('patient_id', 'number', 'bigint', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL::varchar[]),
-                               ('is_epr_retry_success', 'checkbox', 'boolean', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL::varchar[]),
+                               ('is_epr_retry_success', 'check box', 'boolean', NULL::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, NULL, NULL::varchar[]),
                                ('status', 'drop down', 'varchar', 1000::INTEGER, 'USER', NULL::NUMERIC, NULL::NUMERIC, 'varchar', '{"ACTIVE","INACTIVE"}')
         ) AS field_data (field_name, ui_data_type, db_data_type, char_limit, source_type, min_value, max_value, control_type,
         control_values)

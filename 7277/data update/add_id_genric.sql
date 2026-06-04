@@ -2,7 +2,8 @@
 UPDATE integration_definitions id
 SET group_id = ifn.group_id
 FROM integration_functionality ifn
-WHERE id.integration_name = ifn.identifier;
+WHERE id.integration_name = ifn.identifier
+and id.integration_name != 'maxrte-token';
 
 
 CREATE SEQUENCE IF NOT EXISTS generic_payload_id_seq;

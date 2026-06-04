@@ -18,10 +18,15 @@ BEGIN
     INTO v_active_pharmacy_id
     FROM c_patient_pharmacy
     WHERE patient_id = p_patient_id
-      AND distributor = p_distributor
-      AND status = 'ACTIVE'
+    AND distributor = p_distributor
+    AND status = 'ACTIVE'
     ORDER BY id DESC
     LIMIT 1;
+
+
+    IF NOT FOUND THEN
+        v_active_pharmacy_id := NULL;
+    END IF;
 
     -- Update eligible cases only
     UPDATE c_cases cc
@@ -32,7 +37,7 @@ BEGIN
     WHERE cc.case_status_id = cs.id
       AND cc.patient_id = p_patient_id
       AND cc.service_id = 65
-      AND cs.overall_case_status = 'Open';
+      AND (cs.overall_case_status = 'Open' OR cs.overall_case_status = 'Missing Information');
 
 END;
 $BODY$;
@@ -57,17 +62,17 @@ BEGIN
         SET
             status = 'INACTIVE',
             modified_at = CURRENT_TIMESTAMP
-        WHERE patient_id = NEW.patient_id
-          AND distributor = NEW.distributor
+        WHERE patient_id = COALESCE(NEW.patient_id, OLD.patient_id)
+          AND distributor = COALESCE(NEW.distributor, OLD.distributor)
           AND id <> NEW.id
           AND status = 'ACTIVE';
 
     END IF;
 
     -- Sync pharmacy_id in c_cases
+    
     PERFORM fn_sync_case_pharmacy(
-        NEW.patient_id,
-        NEW.distributor
+        COALESCE(NEW.patient_id, OLD.patient_id), COALESCE(NEW.distributor, OLD.distributor)
     );
 
     RETURN NEW;
@@ -89,8 +94,7 @@ BEGIN
 
     -- Sync pharmacy_id after delete
     PERFORM fn_sync_case_pharmacy(
-        OLD.patient_id,
-        OLD.distributor
+        COALESCE(NEW.patient_id, OLD.patient_id), COALESCE(NEW.distributor, OLD.distributor)
     );
 
     RETURN OLD;
