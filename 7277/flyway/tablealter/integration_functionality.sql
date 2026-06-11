@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS integration_functionality (
+CREATE TABLE IF NOT EXISTS ${tenant_name}.integration_functionality (
     id BIGSERIAL PRIMARY KEY,
     identifier VARCHAR(255) NOT NULL UNIQUE,
     integration_name VARCHAR(255) NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS integration_functionality (
 );
 
 
-INSERT INTO integration_functionality (
+INSERT INTO ${tenant_name}.integration_functionality (
     identifier,
     integration_name,
     request_type,
@@ -84,12 +84,12 @@ FROM (
 )
 WHERE NOT EXISTS (
     SELECT 1
-    FROM integration_functionality f
+    FROM ${tenant_name}.integration_functionality f
     WHERE f.identifier = t.identifier
 );
 
 
-INSERT INTO d_entities (
+INSERT INTO ${tenant_name}.d_entities (
     name,
     singular_label,
     plural_label,
@@ -146,11 +146,12 @@ SELECT
     NULL AS parent_entity_id
 WHERE NOT EXISTS (
     SELECT 1
-    FROM d_entities
+    FROM ${tenant_name}.d_entities
     WHERE table_name = 'integration_functionality'
 );
 
-INSERT INTO d_entity_fields (
+
+INSERT INTO ${tenant_name}.d_entity_fields (
     name,
     field_name,
     required,
@@ -188,7 +189,7 @@ INSERT INTO d_entity_fields (
 )
 WITH entity AS (
     SELECT id, source_type
-    FROM d_entities
+    FROM ${tenant_name}.d_entities
     WHERE table_name = 'integration_functionality'
 ),
 field_data AS (
@@ -214,7 +215,6 @@ field_data AS (
         control_values
     )
 )
-
 SELECT
     field_name,
     field_name,
@@ -254,7 +254,7 @@ FROM field_data
 CROSS JOIN entity e
 WHERE NOT EXISTS (
     SELECT 1
-    FROM d_entity_fields df
+    FROM ${tenant_name}.d_entity_fields df
     WHERE df.d_entity_id = e.id
       AND df.field_name = field_data.field_name
 );

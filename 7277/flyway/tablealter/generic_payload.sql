@@ -1,4 +1,4 @@
-ALTER TABLE generic_payload
+ALTER TABLE ${tenant_name}.generic_payload
 ADD COLUMN IF NOT EXISTS case_id BIGINT,
 ADD COLUMN IF NOT EXISTS created_by VARCHAR(255),
 ADD COLUMN IF NOT EXISTS definition_id BIGINT,
@@ -13,13 +13,31 @@ ADD COLUMN IF NOT EXISTS resource_type VARCHAR(255),
 ADD COLUMN IF NOT EXISTS resource_id BIGINT,
 ADD COLUMN IF NOT EXISTS integration_identifier VARCHAR(255);
 
-ALTER TABLE generic_payload RENAME COLUMN updated_at TO modified_at; -- updated_at -to modified_at
+
+-- updated_at -> modified_at
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = '${tenant_name}'
+          AND table_name = 'generic_payload'
+          AND column_name = 'updated_at'
+    )
+    AND NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = '${tenant_name}'
+          AND table_name = 'generic_payload'
+          AND column_name = 'modified_at'
+    ) THEN
+        ALTER TABLE ${tenant_name}.generic_payload
+        RENAME COLUMN updated_at TO modified_at;
+    END IF;
+END $$;
 
 
--- udpated_at -to modified_at
-
-
-INSERT INTO d_entities (
+INSERT INTO ${tenant_name}.d_entities (
     name,
     singular_label,
     plural_label,
@@ -76,12 +94,12 @@ SELECT
     NULL AS parent_entity_id
 WHERE NOT EXISTS (
     SELECT 1
-    FROM d_entities
+    FROM ${tenant_name}.d_entities
     WHERE table_name = 'generic_payload'
 );
 
 
-INSERT INTO d_entity_fields (
+INSERT INTO ${tenant_name}.d_entity_fields (
     name,
     field_name,
     required,
@@ -119,7 +137,7 @@ INSERT INTO d_entity_fields (
 )
 WITH entity AS (
     SELECT id, source_type
-    FROM d_entities
+    FROM ${tenant_name}.d_entities
     WHERE table_name = 'generic_payload'
 ),
 field_data AS (
@@ -162,7 +180,6 @@ field_data AS (
         control_values
     )
 )
-
 SELECT
     field_name,
     field_name,
@@ -202,7 +219,7 @@ FROM field_data
 CROSS JOIN entity e
 WHERE NOT EXISTS (
     SELECT 1
-    FROM d_entity_fields df
+    FROM ${tenant_name}.d_entity_fields df
     WHERE df.d_entity_id = e.id
       AND df.field_name = field_data.field_name
 );
