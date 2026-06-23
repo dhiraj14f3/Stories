@@ -13,8 +13,19 @@ ADD COLUMN IF NOT EXISTS resource_type VARCHAR(255),
 ADD COLUMN IF NOT EXISTS resource_id BIGINT,
 ADD COLUMN IF NOT EXISTS integration_identifier VARCHAR(255);
 
-ALTER TABLE generic_payload RENAME COLUMN updated_at TO modified_at; -- updated_at -to modified_at
-
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'config'
+          AND table_name = 'generic_payload'
+          AND column_name = 'updated_at'
+    ) THEN
+        ALTER TABLE public.generic_payload
+        RENAME COLUMN updated_at TO modified_at;
+    END IF;
+END $$;
 
 -- udpated_at -to modified_at
 
