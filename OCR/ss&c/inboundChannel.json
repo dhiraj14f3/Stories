@@ -1,0 +1,110 @@
+{
+  "channelId": "ssc-ocr-inbound-webhook",
+  "name": "SS&C OCR Inbound Webhook",
+  "description": "SS&C ready-to-export webhook: resolve caseId → fetch case data → mark exported → hand off raw payload to case-automation process-batch.",
+  "config": {
+    "source": {
+      "type": "HTTP",
+      "path": "webhook",
+      "method": "POST",
+      "contentType": "application/json",
+      "useCase": "WEBHOOK",
+      "queryParamType": "SSC_OCR"
+    },
+    "pipeline": [
+      {
+        "stageType": "TRANSFORMER",
+        "stageId": "resolve-case-id",
+        "order": 10,
+        "transformerType": "JAVASCRIPT",
+        "script": "response = (function(){ var b = request || {}; var caseId = b.case_id || b.caseId || (b.cases && b.cases[0] && (b.cases[0].id || b.cases[0].case_id)); if (!caseId && b.id) { caseId = b.id; } var out = {}; for (var k in b) { if (Object.prototype.hasOwnProperty.call(b, k)) { out[k] = b[k]; } } out.caseId = String(caseId || ''); out.workflowId = b.workflow_id || b.workflowId || '538'; return out; })();"
+      },
+      {
+        "stageType": "FILTER",
+        "stageId": "require-case-id",
+        "order": 15,
+        "conditionScript": "req.body.caseId && req.body.caseId.length > 0",
+        "conditionType": "JAVASCRIPT",
+        "onFail": "ERROR"
+      },
+      {
+        "stageType": "ENRICHER",
+        "stageId": "fetch-case-data",
+        "order": 20,
+        "integrationId": "ssc-ocr-get-case-data",
+        "request": {
+          "body": {
+            "entries": { "caseId": "req.body.caseId" }
+          },
+          "pathParams": {
+            "entries": { "caseId": "req.body.caseId" }
+          }
+        },
+        "response": {
+          "body": {
+            "script": "response = (function(){ var caseId = req.body.caseId; var batchId = (res && (res.batch_id || res.batchId || res.id)) || caseId; var out = {}; for (var k in req.body) { if (Object.prototype.hasOwnProperty.call(req.body, k)) { out[k] = req.body[k]; } } out.caseData = res; out.fetchResponse = res; out.batchUuid = String(batchId); return out; })();"
+          }
+        },
+        "retry": {
+          "scheduleMs": [60000, 120000, 300000],
+          "responseScript": "(typeof statusCode !== 'undefined' && statusCode >= 500) ? 'RETRY' : ((typeof statusCode !== 'undefined' && statusCode >= 400) ? 'FAIL' : 'SUCCESS')",
+          "responseScriptType": "JAVASCRIPT"
+        }
+      },
+      {
+        "stageType": "ENRICHER",
+        "stageId": "mark-exported",
+        "order": 30,
+        "integrationId": "ssc-ocr-mark-exported",
+        "optional": true,
+        "request": {
+          "body": {
+            "script": "response = (function(){ var ids = []; if (req.body.caseId) { ids.push(parseInt(req.body.caseId, 10)); } return { caseIds: ids }; })();"
+          }
+        },
+        "retry": {
+          "scheduleMs": [60000, 120000],
+          "responseScript": "(typeof statusCode !== 'undefined' && statusCode >= 500) ? 'RETRY' : ((typeof statusCode !== 'undefined' && statusCode >= 400) ? 'FAIL' : 'SUCCESS')",
+          "responseScriptType": "JAVASCRIPT"
+        }
+      },
+      {
+        "stageType": "ENRICHER",
+        "stageId": "process-batch",
+        "order": 40,
+        "integrationId": "ssc-ocr-process-batch",
+        "request": {
+          "body": {
+            "script": "response = { batchUuid: req.body.batchUuid, caseId: req.body.caseId, workflowId: req.body.workflowId, fetchResponse: req.body.fetchResponse };"
+          },
+          "headers": {
+            "literal": { "x-internal-request": "true" }
+          }
+        },
+        "retry": {
+          "scheduleMs": [60000, 120000, 300000],
+          "responseScript": "(typeof statusCode !== 'undefined' && statusCode >= 500) ? 'RETRY' : ((typeof statusCode !== 'undefined' && statusCode >= 400) ? 'FAIL' : 'SUCCESS')",
+          "responseScriptType": "JAVASCRIPT"
+        }
+      },
+      {
+        "stageType": "TRANSFORMER",
+        "stageId": "inbound-response",
+        "order": 50,
+        "transformerType": "JAVASCRIPT",
+        "script": "response = { success: true, caseId: request.caseId, batchUuid: request.batchUuid };"
+      }
+    ],
+    "destinations": [],
+    "errorHandling": {
+      "maxRetries": 0,
+      "retryDelayMs": 0,
+      "alertOnFailure": true
+    },
+    "properties": {
+      "sandboxMode": false,
+      "maxConcurrentMessages": 10,
+      "logLevel": "INFO"
+    }
+  }
+}
