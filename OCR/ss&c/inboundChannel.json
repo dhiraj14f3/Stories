@@ -9,7 +9,7 @@
       "method": "POST",
       "contentType": "application/json",
       "useCase": "WEBHOOK",
-      "queryParamType": "SSC_OCR"
+      "queryParamType": "SS&C"
     },
     "pipeline": [
       {

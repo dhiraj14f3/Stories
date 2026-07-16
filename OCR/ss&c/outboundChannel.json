@@ -1,126 +1,165 @@
 {
-  "channelId": "ssc-ocr-outbound",
-  "name": "SS&C OCR Outbound",
-  "description": "After fax poll: create Captricity batch → upload PDF (multipart) → submit. Invoked by case-automation.",
+  "channelId": "ocr-fax",
+  "name": "OCR Fax Outbound (poll intake)",
+  "description": "SQS INTAKE from fax-consumer: communicationId -> s3Key -> Captricity create/upload/submit.",
   "config": {
     "source": {
-      "type": "HTTP",
-      "path": "ocr/ssc/outbound",
-      "method": "POST",
-      "contentType": "application/json",
-      "useCase": "PATH"
+      "type": "SQS"
     },
     "pipeline": [
       {
-        "stageType": "TRANSFORMER",
-        "stageId": "normalize-outbound-request",
-        "order": 10,
-        "transformerType": "JAVASCRIPT",
-        "script": "response = { batchName: (request.batchName || request.name || ('ecrm-' + Date.now())), name: (request.batchName || request.name || ('ecrm-' + Date.now())), workflowId: String(request.workflowId || request.workflow_id || '538'), fileName: (request.fileName || request.file_name || 'document.pdf'), communicationId: request.communicationId, hasFilePayload: !!(request.fileBase64 || request.file_base64 || request.s3Key || request.s3_key) };"
-      },
-      {
+        "order": 5,
+        "onFail": "ERROR",
+        "stageId": "require-communication-id",
         "stageType": "FILTER",
-        "stageId": "require-outbound-fields",
-        "order": 15,
-        "conditionScript": "req.body.batchName && req.body.workflowId && (req.body.hasFilePayload || mainReq.body.fileBase64 || mainReq.body.file_base64 || mainReq.body.s3Key || mainReq.body.s3_key)",
         "conditionType": "JAVASCRIPT",
-        "onFail": "ERROR"
+        "conditionScript": "!!(req.body.communicationId || req.body.communication_id || mainReq.body.communicationId || mainReq.body.communication_id)"
       },
       {
-        "stageType": "ENRICHER",
-        "stageId": "create-batch",
+        "args": [
+          {
+            "injectMessage": true
+          }
+        ],
+        "order": 10,
+        "result": {
+          "body": {
+            "script": "response = Object.assign({}, req.body, res || {});"
+          }
+        },
+        "stageId": "resolve-fax-s3-key",
+        "className": "com.veersa.fortrea.integration.channel.service.ChannelFaxPdfLoaderService",
+        "stageType": "BEAN",
+        "methodName": "resolveS3KeyForOutbound"
+      },
+      {
+        "order": 15,
+        "script": "response = { batchName: (request.batchName || request.name || ('ecrm-' + Date.now())), name: (request.batchName || request.name || ('ecrm-' + Date.now())), workflowId: String(request.workflowId || request.workflow_id || '538'), fileName: (request.fileName || request.file_name || ((request.communicationId || 'document') + '.pdf')), communicationId: request.communicationId || request.communication_id, programId: request.programId, sourceType: request.sourceType || 'FAX', tenantId: request.tenantId, s3Key: request.s3Key || request.s3_key || mainReq.body.s3Key || mainReq.body.s3_key, hasFilePayload: !!(request.s3Key || request.s3_key || request.hasFilePayload || mainReq.body.s3Key) };",
+        "stageId": "normalize-outbound-request",
+        "stageType": "TRANSFORMER",
+        "transformerType": "JAVASCRIPT"
+      },
+      {
         "order": 20,
-        "integrationId": "ssc-ocr-create-batch",
+        "onFail": "ERROR",
+        "stageId": "require-outbound-fields",
+        "stageType": "FILTER",
+        "conditionType": "JAVASCRIPT",
+        "conditionScript": "req.body.batchName && req.body.workflowId && (req.body.hasFilePayload || req.body.s3Key || mainReq.body.s3Key || mainReq.body.s3_key)"
+      },
+      {
+        "order": 25,
+        "retry": {
+          "scheduleMs": [
+            60000,
+            120000,
+            300000
+          ],
+          "responseScript": "(typeof statusCode !== 'undefined' && statusCode >= 500) ? 'RETRY' : ((typeof statusCode !== 'undefined' && statusCode >= 400) ? 'FAIL' : 'SUCCESS')",
+          "responseScriptType": "JAVASCRIPT"
+        },
         "request": {
           "body": {
             "script": "response = { batchName: req.body.batchName, name: req.body.batchName, workflowId: req.body.workflowId };"
           }
         },
+        "stageId": "create-batch",
         "response": {
           "body": {
-            "script": "response = { batchName: req.body.batchName, name: req.body.name, workflowId: req.body.workflowId, fileName: req.body.fileName, communicationId: req.body.communicationId, hasFilePayload: req.body.hasFilePayload, batchId: String((res && (res.batchId || res.id || (res.raw && res.raw.id))) || ''), createResponse: res };"
+            "script": "response = { batchName: req.body.batchName, name: req.body.name, workflowId: req.body.workflowId, fileName: req.body.fileName, communicationId: req.body.communicationId, s3Key: req.body.s3Key || mainReq.body.s3Key || mainReq.body.s3_key, hasFilePayload: req.body.hasFilePayload, batchId: String((res && (res.batchId || res.id || (res.raw && res.raw.id))) || ''), createResponse: res };"
           }
         },
+        "stageType": "ENRICHER",
+        "integrationId": "ssc-ocr-create-batch"
+      },
+      {
+        "order": 30,
+        "onFail": "ERROR",
+        "stageId": "require-batch-id",
+        "stageType": "FILTER",
+        "conditionType": "JAVASCRIPT",
+        "conditionScript": "req.body.batchId && req.body.batchId.length > 0"
+      },
+      {
+        "order": 35,
         "retry": {
-          "scheduleMs": [60000, 120000, 300000],
+          "scheduleMs": [
+            60000,
+            120000,
+            300000
+          ],
           "responseScript": "(typeof statusCode !== 'undefined' && statusCode >= 500) ? 'RETRY' : ((typeof statusCode !== 'undefined' && statusCode >= 400) ? 'FAIL' : 'SUCCESS')",
           "responseScriptType": "JAVASCRIPT"
-        }
-      },
-      {
-        "stageType": "FILTER",
-        "stageId": "require-batch-id",
-        "order": 25,
-        "conditionScript": "req.body.batchId && req.body.batchId.length > 0",
-        "conditionType": "JAVASCRIPT",
-        "onFail": "ERROR"
-      },
-      {
-        "stageType": "ENRICHER",
-        "stageId": "upload-batch-file",
-        "order": 30,
-        "integrationId": "ssc-ocr-add-batch-file",
+        },
         "request": {
           "body": {
-            "script": "response = { batchId: req.body.batchId, fileName: req.body.fileName || mainReq.body.fileName || 'document.pdf', fileBase64: mainReq.body.fileBase64 || mainReq.body.file_base64, s3Key: mainReq.body.s3Key || mainReq.body.s3_key, s3Bucket: mainReq.body.s3Bucket || mainReq.body.s3_bucket, contentType: mainReq.body.contentType || 'application/pdf', communicationId: req.body.communicationId || mainReq.body.communicationId };"
+            "script": "var cid = req.body.communicationId || mainReq.body.communicationId; var bid = req.body.batchId; response = { batchId: bid, fileName: req.body.fileName || mainReq.body.fileName || 'document.pdf', s3Key: req.body.s3Key || mainReq.body.s3Key || mainReq.body.s3_key, fileField: 'uploaded_file', contentType: mainReq.body.contentType || 'application/pdf', communicationId: cid, metadata: { batch_file_metadata: [{ metadata: { communication_ref: String(cid || bid || '') } }] } };"
           },
           "pathParams": {
-            "entries": { "batchId": "req.body.batchId" }
+            "entries": {
+              "batchId": "req.body.batchId"
+            }
           }
         },
+        "stageId": "upload-batch-file",
         "response": {
           "body": {
             "script": "response = { batchName: req.body.batchName, workflowId: req.body.workflowId, fileName: req.body.fileName, communicationId: req.body.communicationId, batchId: req.body.batchId, uploaded: true, uploadResponse: res };"
           }
         },
-        "retry": {
-          "scheduleMs": [60000, 120000, 300000],
-          "responseScript": "(typeof statusCode !== 'undefined' && statusCode >= 500) ? 'RETRY' : ((typeof statusCode !== 'undefined' && statusCode >= 400) ? 'FAIL' : 'SUCCESS')",
-          "responseScriptType": "JAVASCRIPT"
-        }
+        "stageType": "ENRICHER",
+        "integrationId": "ssc-ocr-add-batch-file"
       },
       {
-        "stageType": "ENRICHER",
-        "stageId": "submit-batch",
         "order": 40,
-        "integrationId": "ssc-ocr-submit-batch",
+        "retry": {
+          "scheduleMs": [
+            60000,
+            120000,
+            300000
+          ],
+          "responseScript": "(typeof statusCode !== 'undefined' && statusCode >= 500) ? 'RETRY' : ((typeof statusCode !== 'undefined' && statusCode >= 400) ? 'FAIL' : 'SUCCESS')",
+          "responseScriptType": "JAVASCRIPT"
+        },
         "request": {
           "body": {
-            "entries": { "batchId": "req.body.batchId" }
+            "entries": {
+              "batchId": "req.body.batchId"
+            }
           },
           "pathParams": {
-            "entries": { "batchId": "req.body.batchId" }
+            "entries": {
+              "batchId": "req.body.batchId"
+            }
           }
         },
+        "stageId": "submit-batch",
         "response": {
           "body": {
             "script": "response = { batchName: req.body.batchName, workflowId: req.body.workflowId, fileName: req.body.fileName, communicationId: req.body.communicationId, batchId: req.body.batchId, uploaded: req.body.uploaded, submitted: true, submitResponse: res };"
           }
         },
-        "retry": {
-          "scheduleMs": [60000, 120000, 300000],
-          "responseScript": "(typeof statusCode !== 'undefined' && statusCode >= 500) ? 'RETRY' : ((typeof statusCode !== 'undefined' && statusCode >= 400) ? 'FAIL' : 'SUCCESS')",
-          "responseScriptType": "JAVASCRIPT"
-        }
+        "stageType": "ENRICHER",
+        "integrationId": "ssc-ocr-submit-batch"
       },
       {
-        "stageType": "TRANSFORMER",
-        "stageId": "outbound-response",
         "order": 50,
-        "transformerType": "JAVASCRIPT",
-        "script": "response = { success: true, batchId: request.batchId, workflowId: request.workflowId, fileName: request.fileName, submitted: !!request.submitted };"
+        "script": "response = { success: true, batchId: request.batchId, workflowId: request.workflowId, fileName: request.fileName, communicationId: request.communicationId, submitted: !!request.submitted };",
+        "stageId": "outbound-response",
+        "stageType": "TRANSFORMER",
+        "transformerType": "JAVASCRIPT"
       }
     ],
+    "properties": {
+      "logLevel": "INFO",
+      "sandboxMode": false,
+      "maxConcurrentMessages": 5
+    },
     "destinations": [],
     "errorHandling": {
       "maxRetries": 0,
       "retryDelayMs": 0,
       "alertOnFailure": true
-    },
-    "properties": {
-      "sandboxMode": false,
-      "maxConcurrentMessages": 5,
-      "logLevel": "INFO"
     }
   }
 }
