@@ -16,7 +16,7 @@ SELECT
         "parameters": { "method": "POST", "Content-Type": "application/json" }
       },
       "transformation": {
-        "requestScript": "var b = request || {}; var wf = b.workflowId || b.workflow_id; var out = { name: b.batchName || b.name || ('ecrm-' + Date.now()) }; if (wf) { out.workflow_id = parseInt(wf, 10); } response = out;",
+        "requestScript": "var b = request || {}; var wf = b.workflowId || b.workflow_id; function uuidv4() { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) { var r = Math.random() * 16 | 0; var v = c === 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); }); } var out = { name: b.batchName || b.name || uuidv4() }; if (wf) { out.workflow_id = parseInt(wf, 10); } response = out;",
         "responseScript": "var b = request || {}; response = { batchId: String(b.id || b.batch_id || ''), raw: b };"
       }
     }$JSON$::jsonb,
@@ -154,7 +154,7 @@ UPDATE integration_definitions SET
     WHEN 'ssc-ocr-create-batch' THEN $JSON${
       "connector": { "uri": "https://shreddr.captricity.com/api/v1/batch/", "type": "API", "parameters": { "method": "POST", "Content-Type": "application/json" } },
       "transformation": {
-        "requestScript": "var b = request || {}; var wf = b.workflowId || b.workflow_id; var out = { name: b.batchName || b.name || ('ecrm-' + Date.now()) }; if (wf) { out.workflow_id = parseInt(wf, 10); } response = out;",
+        "requestScript": "var b = request || {}; var wf = b.workflowId || b.workflow_id; function uuidv4() { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) { var r = Math.random() * 16 | 0; var v = c === 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); }); } var out = { name: b.batchName || b.name || uuidv4() }; if (wf) { out.workflow_id = parseInt(wf, 10); } response = out;",
         "responseScript": "var b = request || {}; response = { batchId: String(b.id || b.batch_id || ''), raw: b };"
       }
     }$JSON$::jsonb
@@ -208,7 +208,7 @@ UPDATE integration_definitions SET
     WHEN 'ssc-ocr-create-batch' THEN $JSON${
       "connector": { "uri": "https://shreddr.captricity.com/api/v1/batch/", "type": "API", "parameters": { "method": "POST", "Content-Type": "application/json" } },
       "transformation": {
-        "requestScript": "var b = request || {}; var wf = b.workflowId || b.workflow_id; var out = { name: b.batchName || b.name || ('ecrm-' + Date.now()) }; if (wf) { out.workflow_id = parseInt(wf, 10); } response = out;",
+        "requestScript": "var b = request || {}; var wf = b.workflowId || b.workflow_id; function uuidv4() { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) { var r = Math.random() * 16 | 0; var v = c === 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); }); } var out = { name: b.batchName || b.name || uuidv4() }; if (wf) { out.workflow_id = parseInt(wf, 10); } response = out;",
         "responseScript": "var b = request || {}; response = { batchId: String(b.id || b.batch_id || ''), raw: b };"
       }
     }$JSON$::jsonb

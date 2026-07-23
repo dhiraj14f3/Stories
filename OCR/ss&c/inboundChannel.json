@@ -1,110 +1,168 @@
 {
   "channelId": "ssc-ocr-inbound-webhook",
   "name": "SS&C OCR Inbound Webhook",
-  "description": "SS&C ready-to-export webhook: resolve caseId → fetch case data → mark exported → hand off raw payload to case-automation process-batch.",
+  "description": "SS&C ready-to-export webhook: resolve caseId → fetch case data → resolve tenant from echoed metadata → verify outbound batch → transform to generic document → mark exported → hand off to case-automation process-batch. Single copy in config schema -- this is the only one that ever executes (channel lookup happens once, before tenant is known; there is no re-fetch after tenant resolves), so per-tenant divergence must NOT be reintroduced here.",
   "config": {
     "source": {
-      "type": "HTTP",
       "path": "webhook",
+      "type": "HTTP",
       "method": "POST",
-      "contentType": "application/json",
       "useCase": "WEBHOOK",
-      "queryParamType": "SS&C"
+      "contentType": "application/json",
+      "queryParamType": "SS",
+      "webhookUseCase": true
     },
     "pipeline": [
       {
-        "stageType": "TRANSFORMER",
-        "stageId": "resolve-case-id",
         "order": 10,
-        "transformerType": "JAVASCRIPT",
-        "script": "response = (function(){ var b = request || {}; var caseId = b.case_id || b.caseId || (b.cases && b.cases[0] && (b.cases[0].id || b.cases[0].case_id)); if (!caseId && b.id) { caseId = b.id; } var out = {}; for (var k in b) { if (Object.prototype.hasOwnProperty.call(b, k)) { out[k] = b[k]; } } out.caseId = String(caseId || ''); out.workflowId = b.workflow_id || b.workflowId || '538'; return out; })();"
+        "script": "response = (function(){ var b = request || {}; var details = b.details || {}; var caseId = details.case_id || details.caseId || b.case_id || b.caseId || (b.cases && b.cases[0] && (b.cases[0].id || b.cases[0].case_id)) || b.batch_id || b.batchId; if (!caseId && b.id) { caseId = b.id; } var out = {}; for (var k in b) { if (Object.prototype.hasOwnProperty.call(b, k)) { out[k] = b[k]; } } out.caseId = String(caseId || ''); out.workflowId = b.workflow_id || b.workflowId || ''; return out; })();",
+        "enabled": true,
+        "stageId": "resolve-case-id",
+        "stageType": "TRANSFORMER",
+        "transformerType": "JAVASCRIPT"
       },
       {
-        "stageType": "FILTER",
-        "stageId": "require-case-id",
         "order": 15,
-        "conditionScript": "req.body.caseId && req.body.caseId.length > 0",
+        "onFail": "ERROR",
+        "enabled": true,
+        "stageId": "require-case-id",
+        "stageType": "FILTER",
         "conditionType": "JAVASCRIPT",
-        "onFail": "ERROR"
+        "conditionScript": "req.body.caseId && req.body.caseId.length > 0"
       },
       {
-        "stageType": "ENRICHER",
-        "stageId": "fetch-case-data",
         "order": 20,
-        "integrationId": "ssc-ocr-get-case-data",
+        "retry": {
+          "maxAutoRetry": 2,
+          "retryDelayMs": 60000,
+          "responseScript": "(res.statusCode != null && res.statusCode >= 500) ? 'RETRY' : ((res.statusCode != null && res.statusCode >= 400) ? 'FAIL' : 'SUCCESS')",
+          "responseScriptType": "JAVASCRIPT"
+        },
+        "enabled": true,
         "request": {
           "body": {
-            "entries": { "caseId": "req.body.caseId" }
+            "entries": {
+              "caseId": "req.body.caseId"
+            }
           },
           "pathParams": {
-            "entries": { "caseId": "req.body.caseId" }
+            "entries": {
+              "caseId": "req.body.caseId"
+            }
           }
         },
+        "stageId": "fetch-case-data",
+        "optional": false,
         "response": {
           "body": {
-            "script": "response = (function(){ var caseId = req.body.caseId; var batchId = (res && (res.batch_id || res.batchId || res.id)) || caseId; var out = {}; for (var k in req.body) { if (Object.prototype.hasOwnProperty.call(req.body, k)) { out[k] = req.body[k]; } } out.caseData = res; out.fetchResponse = res; out.batchUuid = String(batchId); return out; })();"
+            "script": "response = (function(){ var caseId = req.body.caseId; var raw = res; var batchId = (raw && (raw.batch_id || raw.batchId)) || (req.body.batch_id || req.body.batchId); var out = {}; for (var k in req.body) { if (Object.prototype.hasOwnProperty.call(req.body, k)) { out[k] = req.body[k]; } } out.caseData = raw; out.batchUuid = String(batchId || caseId || ''); return out; })();"
           }
         },
-        "retry": {
-          "scheduleMs": [60000, 120000, 300000],
-          "responseScript": "(typeof statusCode !== 'undefined' && statusCode >= 500) ? 'RETRY' : ((typeof statusCode !== 'undefined' && statusCode >= 400) ? 'FAIL' : 'SUCCESS')",
-          "responseScriptType": "JAVASCRIPT"
-        }
+        "stageType": "ENRICHER",
+        "integrationId": "ssc-ocr-get-case-data"
       },
       {
-        "stageType": "ENRICHER",
-        "stageId": "mark-exported",
+        "stageType": "BEAN",
+        "stageId": "resolve-tenant-from-metadata",
+        "order": 22,
+        "className": "com.veersa.fortrea.common.service.ocr.OcrPersistenceService",
+        "methodName": "setTenantFromClientId",
+        "args": [
+          {
+            "type": "java.lang.Long",
+            "script": "(function(){ var cd = req.body.caseData || {}; var bfm = cd.metadata && cd.metadata.batch_file_metadata; var meta = (bfm && bfm[0] && bfm[0].metadata) || {}; return meta.tenant_id ? parseInt(meta.tenant_id, 10) : null; })()"
+          }
+        ]
+      },
+      {
+        "stageType": "BEAN",
+        "stageId": "require-outbound-batch-exists",
+        "order": 24,
+        "className": "com.veersa.fortrea.common.service.ocr.OcrPersistenceService",
+        "methodName": "requireOutboundBatchExists",
+        "args": [
+          {
+            "type": "java.lang.String",
+            "script": "(function(){ var cd = req.body.caseData || {}; var bfm = cd.metadata && cd.metadata.batch_file_metadata; var meta = (bfm && bfm[0] && bfm[0].metadata) || {}; return String(meta.batch_name || ''); })()"
+          },
+          {
+            "type": "java.lang.Long",
+            "script": "(function(){ var cd = req.body.caseData || {}; var bfm = cd.metadata && cd.metadata.batch_file_metadata; var meta = (bfm && bfm[0] && bfm[0].metadata) || {}; return meta.communication_ref ? parseInt(meta.communication_ref, 10) : null; })()"
+          }
+        ]
+      },
+      {
+        "order": 25,
+        "enabled": true,
+        "stageId": "transform-ssc-to-generic",
+        "optional": false,
+        "script": "response = (function(){ var b = request || {}; var raw = b.caseData || b.fetchResponse || b; while (raw && raw.apiResponse) { raw = raw.apiResponse; } while (raw && raw.body && !raw.forms) { raw = raw.body; } while (raw && raw.caseData && !raw.forms) { raw = raw.caseData; } var pageMetaById = {}; var rejectedPageNumbers = []; var acceptedForms = []; var formIdSet = {}; var sheetIdCounts = {}; var multipleForms = false; var forms = (raw && raw.forms) || []; var i, j, form, page, field, pageId, order, pageNumber, templateName, key, fields = [], templatePages = {}, primaryTemplate = null, pageCount = 0; function txt(o){ for (var a = 1; a < arguments.length; a++) { var v = o[arguments[a]]; if (v != null && String(v).length > 0) { return String(v); } } return null; } function pageFromName(name){ if (!name) { return null; } var m = /page(\\d+)/i.exec(name); return m ? parseInt(m[1], 10) : null; } function isRejected(f){ if (!f) { return false; } if (f.name && String(f.name).toLowerCase() === 'rejected') { return true; } return f.template_id == null; } function normConf(c){ if (c == null) { return null; } var n = Number(c); if (isNaN(n)) { return null; } if (n <= 1) { n *= 100; } return Math.round(n * 10000) / 10000; } for (i = 0; i < forms.length; i++) { form = forms[i]; if (isRejected(form)) { var rpages = form.pages || []; for (j = 0; j < rpages.length; j++) { page = rpages[j]; order = page.order; pageNumber = (order != null && order > 0) ? order : pageFromName(txt(page, 'page_name', 'pageName')); if (pageNumber != null && pageNumber > 0) { rejectedPageNumbers.push(pageNumber); } } } else { acceptedForms.push(form); var fid = form.id != null ? form.id : form.form_id; if (fid != null) { formIdSet[String(fid)] = true; } var pages = form.pages || []; var formName = txt(form, 'name'); for (j = 0; j < pages.length; j++) { page = pages[j]; pageId = page.page_id != null ? page.page_id : page.pageId; if (pageId == null) { continue; } order = page.order; pageNumber = (order != null && order > 0) ? order : pageFromName(txt(page, 'page_name', 'pageName')); templateName = txt(page, 'template_name', 'templateName') || formName; pageMetaById[String(pageId)] = { pageNumber: pageNumber, templateName: templateName }; var sid = page.sheet_id != null ? page.sheet_id : page.sheetId; if (sid != null) { var skey = String(sid); sheetIdCounts[skey] = (sheetIdCounts[skey] || 0) + 1; if (sheetIdCounts[skey] > 1) { multipleForms = true; } } } } } var distinctFormIds = 0; for (var fidk in formIdSet) { if (Object.prototype.hasOwnProperty.call(formIdSet, fidk)) { distinctFormIds++; } } if (distinctFormIds > 1) { multipleForms = true; } for (i = 0; i < acceptedForms.length; i++) { form = acceptedForms[i]; var defaultTemplate = txt(form, 'name'); var data = form.data || []; for (j = 0; j < data.length; j++) { field = data[j]; if (!field) { continue; } key = txt(field, 'field_name', 'fieldName'); if (!key) { continue; } pageId = field.page_id != null ? field.page_id : field.pageId; var meta = pageId != null ? pageMetaById[String(pageId)] : null; pageNumber = meta ? meta.pageNumber : null; templateName = (meta && meta.templateName) ? meta.templateName : defaultTemplate; fields.push({ key: key, value: txt(field, 'value'), confidence: normConf(field.confidence), page_number: pageNumber, template_name: templateName }); } } fields.sort(function(a, c){ var pa = a.page_number != null ? a.page_number : 2147483647; var pb = c.page_number != null ? c.page_number : 2147483647; if (pa !== pb) { return pa - pb; } var ka = a.key || ''; var kb = c.key || ''; return ka < kb ? -1 : ka > kb ? 1 : 0; }); for (var pid in pageMetaById) { if (!Object.prototype.hasOwnProperty.call(pageMetaById, pid)) { continue; } var pm = pageMetaById[pid]; if (!pm.pageNumber || pm.pageNumber <= 0) { continue; } var tn = pm.templateName || 'unknown'; if (!templatePages[tn]) { templatePages[tn] = {}; } templatePages[tn][pm.pageNumber] = true; if (!primaryTemplate) { primaryTemplate = tn; } if (pm.pageNumber > pageCount) { pageCount = pm.pageNumber; } } for (i = 0; i < rejectedPageNumbers.length; i++) { if (rejectedPageNumbers[i] > pageCount) { pageCount = rejectedPageNumbers[i]; } } rejectedPageNumbers.sort(function(a, c){ return a - c; }); var templates = []; for (var tname in templatePages) { if (!Object.prototype.hasOwnProperty.call(templatePages, tname)) { continue; } var nums = []; for (var n in templatePages[tname]) { if (Object.prototype.hasOwnProperty.call(templatePages[tname], n)) { nums.push(parseInt(n, 10)); } } nums.sort(function(a, c){ return a - c; }); templates.push({ name: tname, page_numbers: nums }); } var generic = { batch_id: txt(raw, 'batch_id', 'batchId'), document_id: raw && raw.id != null ? String(raw.id) : null, file_name: txt(raw, 'name', 'file_name', 'fileName'), multiple_forms: multipleForms, page_count: pageCount > 0 ? pageCount : null, overall_confidence: null, template_name: primaryTemplate, templates: templates.length ? templates : null, rejected_pages: rejectedPageNumbers.length ? { page_numbers: rejectedPageNumbers, reason: 'Rejected', total_rejected: rejectedPageNumbers.length } : null, fields: fields }; var out = {}; for (var k in b) { if (Object.prototype.hasOwnProperty.call(b, k)) { out[k] = b[k]; } } out.fetchResponse = generic; out.genericDocument = generic; return out; })();",
+        "stageType": "TRANSFORMER",
+        "transformerType": "JAVASCRIPT"
+      },
+      {
         "order": 30,
-        "integrationId": "ssc-ocr-mark-exported",
-        "optional": true,
+        "retry": {
+          "maxAutoRetry": 2,
+          "retryDelayMs": 60000,
+          "responseScript": "(res.statusCode != null && res.statusCode >= 500) ? 'RETRY' : ((res.statusCode != null && res.statusCode >= 400) ? 'FAIL' : 'SUCCESS')",
+          "responseScriptType": "JAVASCRIPT"
+        },
+        "enabled": true,
         "request": {
           "body": {
-            "script": "response = (function(){ var ids = []; if (req.body.caseId) { ids.push(parseInt(req.body.caseId, 10)); } return { caseIds: ids }; })();"
+            "script": "response = (function(){ var ids = []; if (req.body.caseId) { ids.push(parseInt(req.body.caseId, 10)); } return { case_ids: ids }; })();"
           }
         },
-        "retry": {
-          "scheduleMs": [60000, 120000],
-          "responseScript": "(typeof statusCode !== 'undefined' && statusCode >= 500) ? 'RETRY' : ((typeof statusCode !== 'undefined' && statusCode >= 400) ? 'FAIL' : 'SUCCESS')",
-          "responseScriptType": "JAVASCRIPT"
-        }
+        "stageId": "mark-exported",
+        "optional": true,
+        "stageType": "ENRICHER",
+        "integrationId": "ssc-ocr-mark-exported"
       },
       {
-        "stageType": "ENRICHER",
-        "stageId": "process-batch",
         "order": 40,
-        "integrationId": "ssc-ocr-process-batch",
+        "retry": {
+          "maxAutoRetry": 2,
+          "retryDelayMs": 60000,
+          "responseScript": "(res.statusCode != null && res.statusCode >= 500) ? 'RETRY' : ((res.statusCode != null && res.statusCode >= 400) ? 'FAIL' : 'SUCCESS')",
+          "responseScriptType": "JAVASCRIPT"
+        },
+        "enabled": true,
         "request": {
           "body": {
-            "script": "response = { batchUuid: req.body.batchUuid, caseId: req.body.caseId, workflowId: req.body.workflowId, fetchResponse: req.body.fetchResponse };"
+            "script": "response = { batchUuid: req.body.batchUuid, caseId: req.body.caseId, workflowId: req.body.workflowId, fetchResponse: req.body.fetchResponse || req.body.genericDocument };"
           },
           "headers": {
-            "literal": { "x-internal-request": "true" }
+            "entries": {
+              "x-internal-request": "'true'"
+            }
           }
         },
-        "retry": {
-          "scheduleMs": [60000, 120000, 300000],
-          "responseScript": "(typeof statusCode !== 'undefined' && statusCode >= 500) ? 'RETRY' : ((typeof statusCode !== 'undefined' && statusCode >= 400) ? 'FAIL' : 'SUCCESS')",
-          "responseScriptType": "JAVASCRIPT"
-        }
+        "stageId": "process-batch",
+        "optional": false,
+        "stageType": "ENRICHER",
+        "integrationId": "ssc-ocr-process-batch"
       },
       {
-        "stageType": "TRANSFORMER",
-        "stageId": "inbound-response",
         "order": 50,
-        "transformerType": "JAVASCRIPT",
-        "script": "response = { success: true, caseId: request.caseId, batchUuid: request.batchUuid };"
+        "script": "response = { success: true, caseId: request.caseId, batchUuid: request.batchUuid, fieldCount: (request.fetchResponse && request.fetchResponse.fields) ? request.fetchResponse.fields.length : 0 };",
+        "enabled": true,
+        "stageId": "inbound-response",
+        "stageType": "TRANSFORMER",
+        "transformerType": "JAVASCRIPT"
       }
     ],
+    "properties": {
+      "logLevel": "INFO",
+      "sandboxMode": false,
+      "maxConcurrentMessages": 10
+    },
     "destinations": [],
     "errorHandling": {
       "maxRetries": 0,
       "retryDelayMs": 0,
       "alertOnFailure": true
     },
-    "properties": {
-      "sandboxMode": false,
-      "maxConcurrentMessages": 10,
-      "logLevel": "INFO"
-    }
+    "configVariables": {}
   }
 }
